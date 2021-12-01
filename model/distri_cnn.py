@@ -123,6 +123,10 @@ def main():
 
         torch.save(using_model.state_dict(),'../model/cnn_epoch{}.pth'.format(epoch))
 
+        #### share the weight to neighbors
+        # [TO DO]
+
+
     print('Done!')
 
 
