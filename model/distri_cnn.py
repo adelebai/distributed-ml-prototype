@@ -43,7 +43,7 @@ def main():
 
     print('Preparing dataset:')
     ### load dataset
-    data = pd.read_csv('../data/archive/hmnist_28_28_RGB.csv')
+    data = pd.read_csv('../data/hmnist_28_28_RGB.csv')
 
     ### imblearn, labels amount are not even. So do data augumentation before training network
     ros = RandomOverSampler()
