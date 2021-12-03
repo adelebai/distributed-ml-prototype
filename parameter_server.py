@@ -12,9 +12,9 @@ GET: No payload, returns the current .pth URL and update number
 POST: Payload contains parameters from a worker. 
 - Needs to be aggregated until K batches. We can vary K, but for now it's something like 10-20. 
 
-Parameter server will integrate with a google cloud store. 
+Parameter server will integrate with a google cloud store to write models. 
 
-IMPORTANT: We only expect 1 running instance of this app. More instances will be erroneous. 
+IMPORTANT: We only expect 1 running instance of this app. More instances will cause error behaviour. 
 We are storing a global "state" in the context of this server. This will not work with multiple servers. 
 """
 
@@ -31,13 +31,29 @@ def get_model():
     return model.model.CNN()
 
 def aggregate_updates(model, updates):
-    pass
+    """
+    Propagates gradient deltas in "updates" into the current model
+    """
+    with torch.no_grad():
+        i = 0
+        for p in model.parameters():
+            new_v = p.grad + updates[i]
+            p.copy(new_v)
+            i += 1
+
 
 def get_model_file_name(iteration):
     return f'model/model{iteration}.pth' #TODO update this to storage url
 
 def parse_gradient_payload(contents):
-    pass
+    """
+    expecting a json with
+    {
+    "parameters": []
+    }
+    """
+    contents_json = json.loads(contents)
+    return contents_json["parameters"]
 
 """
 ParameterServer will handle gradient updates and sychronization, and batching.
