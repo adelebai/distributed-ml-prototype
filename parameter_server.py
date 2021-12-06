@@ -18,12 +18,14 @@ IMPORTANT: We only expect 1 running instance of this app. More instances will ca
 We are storing a global "state" in the context of this server. This will not work with multiple servers. 
 """
 
+import ast
 import json
 import torch
 import flask
 from flask import request
 import sys
 import model.model
+import numpy as np
 import threading
 
 # use the ../model/model.py
@@ -37,10 +39,11 @@ def aggregate_updates(model, updates):
     with torch.no_grad():
         i = 0
         for p in model.parameters():
-            new_v = p.grad + updates[i]
-            p.copy(new_v)
+            #print(f"p {p}")
+            #print(f"updates[i]: {updates[i]}")
+            new_v = np.array(p.tolist()) + np.array(updates[i])
+            p.copy_(torch.from_numpy(new_v))
             i += 1
-
 
 def get_model_file_name(iteration):
     return f'model/model{iteration}.pth' #TODO update this to storage url
@@ -57,11 +60,10 @@ def parse_gradient_payload(contents):
 
 """
 ParameterServer will handle gradient updates and sychronization, and batching.
+TODO: print a validation accuracy somewhere after x updates.
 """
 class ParameterServer():
     def __init__(self):
-        self.model = get_model()
-        self.update = 0
         self.k = 20 #update every 20 minibatches.
         
         # stores pending gradients count
@@ -69,6 +71,12 @@ class ParameterServer():
 
         # synchronization locks (mostly for self.model and pending batches)
         self.model_lock = threading.Lock()
+
+        # get and save version 0 of the model
+        self.model = get_model()
+        self.update = -1
+        self.write_model()
+
 
     def add_gradient(self, gradients):
         """
@@ -109,8 +117,8 @@ class ParameterServer():
     def write_model(self):
         # TODO - integrate with storage
         # currently, temporarily a local save:
-        torch.save(self.model.state_dict(), get_model_file_name(self.update))
         self.update += 1
+        torch.save(self.model.state_dict(), get_model_file_name(self.update))
 
 # Initialize p.s. holder. 
 print("Starting parameter server and saving initial model.")    
@@ -132,6 +140,10 @@ def update_model():
 
     # compute the update
     ps.add_gradient(gradients)
+
+    # this is just to return a 200
+    to_ret = {"status": True}
+    return json.dumps(to_ret)
 
 
 if __name__ == "__main__":

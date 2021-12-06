@@ -16,7 +16,7 @@ Learners will download and load the model if the update number is different.
 
 Payload to send the P.S - just a list of model deltas
 {
-    "parameters": []
+    "parameters": {state dict}
 }
 """
 
@@ -27,8 +27,10 @@ import pandas as pd
 import requests
 from requests.models import Response
 import torch
+from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader
 from torchvision import transforms
 import sys
 import time
@@ -69,7 +71,7 @@ class Learner():
 
     # set up credentials
     def set_credentials(self):
-        service_account_info = json.load(open("service-account.json"))
+        service_account_info = json.load(open("distributed/service-account.json"))
         audience = "https://pubsub.googleapis.com/google.pubsub.v1.Subscriber"
         self.credentials = jwt.Credentials.from_service_account_info(
             service_account_info, audience=audience
@@ -92,17 +94,20 @@ class Learner():
         update = int(response_json["update"])
         if self.model_update == -1 or self.model_update != update:
             self.model_update = update
-            self.model_url = response["model"]
+            self.model_url = response_json["model"]
         
         self.read_model()
+        return True
 
     def prep_data(self, data_str):
+        num_rows = len([x for x in data_str.split('\n')])
         data = pd.DataFrame([x.split(',') for x in data_str.split('\n')])
-        labels = data[data.columns[-1]] # last column is label
+        labels = data[data.columns[-1]].astype(int) # last column is label
         images = data.drop(columns=data.columns[-1])
 
-        train_data = model.gen_dataset.my_dataset(df=images, labels=labels, transform=transform)
-        return train_data
+        labels_tensor = torch.from_numpy(np.array(labels)).type(torch.LongTensor)
+        train_data = model.gen_dataset.my_dataset(df=images, labels=labels_tensor, transform=transform)
+        return train_data, num_rows
 
 
     def process_message(self, contents):
@@ -113,18 +118,23 @@ class Learner():
         """
         # convert bytestring to string (a csv minibatch)
         contents_str = contents.decode("utf-8")
-        train_data = self.prep_data(contents_str)
+        train_data, num_rows = self.prep_data(contents_str)
         
         prior_params = np.array([p for p in self.model.parameters()]) # store prior params
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(self.model.parameters(), lr=LEARNING_RATE, betas=(0.9,0.999),eps=1e-8)
 
         # compute the step
-        output = self.model(train_data.df)
-        loss = criterion(output, train_data.labels)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        data_loader_train = DataLoader(train_data, batch_size=num_rows)
+        for image, label in data_loader_train:
+            image = Variable(image)
+            label = Variable(label)
+            
+            output = self.model(image)
+            loss = criterion(output, label)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         # take updated parameters and subtract previous ones to get delta
         new_params = np.array([p for p in self.model.parameters()])
@@ -132,7 +142,9 @@ class Learner():
         return deltas
 
     def post_parameters(self, parameters):
-        payload = {"parameters": parameters}
+        # convert payload to 
+        payload = {"parameters": [p.tolist() for p in parameters]}
+        #print(payload)
         response = requests.post(self.ps_url, json=json.dumps(payload))
 
         if response.status_code != 200:
@@ -154,11 +166,12 @@ class Learner():
         )
 
         if len(response.received_messages) == 0:
-            return False, None # no messages
+            print(f"No messages found in {self.sub_path}")
+            return False # no messages
 
         msg = response.received_messages[0]
         parameters = self.process_message(msg.message.data)
-        success = self.post_parameters(self, parameters)
+        success = self.post_parameters(parameters)
 
         # ack the messages to mark them as read.
         if success:
@@ -182,7 +195,9 @@ def run(ps_url):
     learner = Learner(ps_url)
 
     # First, ping p.s until we get a successful result.
+    # TODO - this doesn't work, need a try catch probably
     while not learner.update_model():
+        print("Parameter server connection not found...trying again in 2 seconds.")
         time.sleep(2) # wait 2 seconds before pinging again
 
     # then run next batch 
@@ -193,7 +208,8 @@ def run(ps_url):
         print(f"Reading next minibatch {c}")
         learner.update_model()
         result = learner.next_batch()
-        c += 1
+        if result:
+            c += 1
     end = time.time()
 
     print(f"Processed {c} minibatches in total. Elapsed time (s) {end-start}")
