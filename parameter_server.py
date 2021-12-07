@@ -47,7 +47,7 @@ def aggregate_updates(model, updates):
             i += 1
 
 def get_model_folder_name(instanceid):
-    return f'model_{instanceid}'
+    return f'tmp/model_{instanceid}'
 
 def get_model_file_name(instanceid, iteration):
     return f'{get_model_folder_name(instanceid)}/model{iteration}.pth' #TODO update this to storage url
@@ -75,6 +75,11 @@ class ParameterServer():
         # give any instance a datetime based id
         self.instance = str(datetime.datetime.now()).replace(":", "").replace(" ","")
         print(f"Creating Parameter Server instance {self.instance}")
+
+        try:
+            os.mkdir('tmp')
+        except FileExistsError:
+            print(f"Folder tmp already exists.")
 
         try:
             os.mkdir(get_model_folder_name(self.instance))
@@ -178,7 +183,7 @@ if __name__ == "__main__":
     # Used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
     # can be configured by adding an `entrypoint` to app.yaml.
-    app.run(host="localhost", port=8080, debug=True)
-    #app.run()
+    #app.run(host="localhost", port=8080, debug=True)
+    app.run()
     
 
