@@ -18,7 +18,7 @@ IMPORTANT: We only expect 1 running instance of this app. More instances will ca
 We are storing a global "state" in the context of this server. This will not work with multiple servers. 
 """
 
-import ast
+import datetime
 import json
 import torch
 import flask
@@ -46,8 +46,11 @@ def aggregate_updates(model, updates):
             p.copy_(torch.from_numpy(new_v))
             i += 1
 
-def get_model_file_name(iteration):
-    return f'model/model{iteration}.pth' #TODO update this to storage url
+def get_model_folder_name(instanceid):
+    return f'model_{instanceid}'
+
+def get_model_file_name(instanceid, iteration):
+    return f'{get_model_folder_name(instanceid)}/model{iteration}.pth' #TODO update this to storage url
 
 def parse_gradient_payload(contents):
     """
@@ -59,6 +62,8 @@ def parse_gradient_payload(contents):
     contents_json = json.loads(contents)
     return contents_json["parameters"]
 
+import os
+
 """
 ParameterServer will handle gradient updates and sychronization, and batching.
 TODO: print a validation accuracy somewhere after x updates.
@@ -66,6 +71,15 @@ TODO: print a validation accuracy somewhere after x updates.
 class ParameterServer():
     def __init__(self):
         self.k = 20 #update every 20 minibatches.
+
+        # give any instance a datetime based id
+        self.instance = str(datetime.datetime.now()).replace(":", "").replace(" ","")
+        print(f"Creating Parameter Server instance {self.instance}")
+
+        try:
+            os.mkdir(get_model_folder_name(self.instance))
+        except FileExistsError:
+            print(f"Folder {get_model_folder_name(self.instance)} already exists.")
         
         # stores pending gradients count
         self.pending = 0
@@ -101,6 +115,7 @@ class ParameterServer():
 
         if self.pending >= self.k:
             # write new model and update
+            print(f"{self.k} updates passed, updating model to version {self.update} and writing.")
             self.write_model()
             self.pending = 0 # reset
 
@@ -117,16 +132,14 @@ class ParameterServer():
         """
         payload = {}
         payload["update"] = self.update
-        #payload["model"] = get_model_file_name(self.update)
         payload["model"] = self.model_url
         return json.dumps(payload)
 
     def write_model(self):
-        # TODO - integrate with storage
         # currently, temporarily a local save:
         # IF deploying with app engine, this should technically be mounted.
-        model_name = get_model_file_name(self.update)
         self.update += 1
+        model_name = get_model_file_name(self.instance, self.update)
         torch.save(self.model.state_dict(), model_name)
 
         # Now that we've saved this, upload to storage.
