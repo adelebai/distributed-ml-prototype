@@ -15,6 +15,7 @@ Files are located in the /distributed folder. There are some library depencencie
 
 ```
 pip install google-cloud-pubsub
+pip install google-cloud-storage
 ```
 
 Data is written to [google pub/sub](https://cloud.google.com/pubsub/lite/docs/quickstart#pubsublite-quickstart-publisher-python).
@@ -36,7 +37,8 @@ python parameter_server.py
 
 This will set up a server on localhost if running locally. 
 
-## Finally, you need to create a separate instance (while parameter_server is running) and run learner.py
+## Finally, you need to create a separate instance (while parameter_server is running) and run learner.py  
+You may need to edit the main function here and replace the ps_url with your own.   
 Example usage
 ```
 python learner.py

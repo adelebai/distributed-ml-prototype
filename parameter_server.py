@@ -27,6 +27,7 @@ import sys
 import model.model
 import numpy as np
 import threading
+from google.cloud import storage
 
 # use the ../model/model.py
 def get_model():
@@ -72,11 +73,16 @@ class ParameterServer():
         # synchronization locks (mostly for self.model and pending batches)
         self.model_lock = threading.Lock()
 
+        # storage bucket
+        self.storage_bucket = "project-distml-ayb2121-yz4053.appspot.com"
+        self.storage_client = storage.Client.from_service_account_json('distributed/service-account.json')
+        self.bucket = self.storage_client.get_bucket(self.storage_bucket)
+        self.model_url = None
+
         # get and save version 0 of the model
         self.model = get_model()
         self.update = -1
         self.write_model()
-
 
     def add_gradient(self, gradients):
         """
@@ -111,14 +117,23 @@ class ParameterServer():
         """
         payload = {}
         payload["update"] = self.update
-        payload["model"] = get_model_file_name(self.update)
+        #payload["model"] = get_model_file_name(self.update)
+        payload["model"] = self.model_url
         return json.dumps(payload)
 
     def write_model(self):
         # TODO - integrate with storage
         # currently, temporarily a local save:
+        # IF deploying with app engine, this should technically be mounted.
+        model_name = get_model_file_name(self.update)
         self.update += 1
-        torch.save(self.model.state_dict(), get_model_file_name(self.update))
+        torch.save(self.model.state_dict(), model_name)
+
+        # Now that we've saved this, upload to storage.
+        new_blob = self.bucket.blob(model_name)
+        new_blob.upload_from_filename(filename=model_name)
+        new_blob.make_public() #Allow public access. This is not secure, but for ease of demonstration.
+        self.model_url = new_blob.public_url
 
 # Initialize p.s. holder. 
 print("Starting parameter server and saving initial model.")    

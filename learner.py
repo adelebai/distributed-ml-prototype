@@ -16,7 +16,7 @@ Learners will download and load the model if the update number is different.
 
 Payload to send the P.S - just a list of model deltas
 {
-    "parameters": {state dict}
+    "parameters": []
 }
 """
 
@@ -38,6 +38,7 @@ from google.auth import jwt
 from google.cloud import pubsub_v1
 import model.model
 import model.gen_dataset
+import urllib.request
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -67,6 +68,7 @@ class Learner():
         # initial model stats
         self.model = model.model.CNN()
         self.model_url = None
+        self.model_path = None
         self.model_update = -1
 
     # set up credentials
@@ -82,7 +84,10 @@ class Learner():
         Update the current cached model with a more recent model
         TODO - if url, need to download the file first.
         """
-        self.model.load_state_dict(torch.load(self.model_url))
+        # download file first
+        urllib.request.urlretrieve(self.model_url, self.model_path) # the urls should be sent publicly
+
+        self.model.load_state_dict(torch.load(self.model_path))
 
     def update_model(self):
         """updates the model"""
@@ -90,13 +95,15 @@ class Learner():
         if response.status_code != 200:
             return False
         
+        # we only update the model if the version has changed.
         response_json = response.json()
         update = int(response_json["update"])
         if self.model_update == -1 or self.model_update != update:
             self.model_update = update
             self.model_url = response_json["model"]
-        
-        self.read_model()
+            self.model_path = f"learner_model{update}"
+            self.read_model()
+
         return True
 
     def prep_data(self, data_str):
@@ -195,10 +202,14 @@ def run(ps_url):
     learner = Learner(ps_url)
 
     # First, ping p.s until we get a successful result.
-    # TODO - this doesn't work, need a try catch probably
-    while not learner.update_model():
-        print("Parameter server connection not found...trying again in 2 seconds.")
-        time.sleep(2) # wait 2 seconds before pinging again
+    server_exists = False
+    while not server_exists:
+        try:
+            learner.update_model()
+            server_exists = True
+        except requests.exceptions.ConnectionError:
+            print("Parameter server connection not found...trying again in 2 seconds.")
+            time.sleep(2) # wait 2 seconds before pinging again
 
     # then run next batch 
     result = True
@@ -218,6 +229,6 @@ if __name__ == "__main__":
     # Initialize any frameworks
     # We should replace with real URL if not localhost.
     # If running on localhost, you might need to change ports 
-    # TODO - grab this value from args
+    # TODO - grab this value from args or config file.
     ps_url = "http://localhost:8080/" 
     run(ps_url)
