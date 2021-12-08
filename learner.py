@@ -88,6 +88,7 @@ class Learner():
         urllib.request.urlretrieve(self.model_url, self.model_path) # the urls should be sent publicly
 
         self.model.load_state_dict(torch.load(self.model_path))
+        self.model.train()
 
     def update_model(self):
         """updates the model"""
@@ -127,12 +128,12 @@ class Learner():
         contents_str = contents.decode("utf-8")
         train_data, num_rows = self.prep_data(contents_str)
         
-        prior_params = np.array([p for p in self.model.parameters()]) # store prior params
+        prior_params = np.array([np.array(p.detach().numpy()) for p in self.model.parameters()]) # store prior params
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(self.model.parameters(), lr=LEARNING_RATE, betas=(0.9,0.999),eps=1e-8)
 
         # compute the step
-        data_loader_train = DataLoader(train_data, batch_size=num_rows)
+        data_loader_train = DataLoader(train_data, batch_size=int(num_rows))
         for image, label in data_loader_train:
             image = Variable(image)
             label = Variable(label)
@@ -144,12 +145,16 @@ class Learner():
             optimizer.step()
 
         # take updated parameters and subtract previous ones to get delta
-        new_params = np.array([p for p in self.model.parameters()])
+        new_params = np.array([p.detach().numpy() for p in self.model.parameters()])
+        #print(f"prior_new: {prior_params[1]}")
+        #print(f"new: {new_params[1]}")
         deltas = new_params - prior_params
+        #print(f"delta: {deltas[1]}")
         return deltas
 
     def post_parameters(self, parameters):
         # convert payload to 
+        print(f"payload index1: {parameters[1]}")
         payload = {"parameters": [p.tolist() for p in parameters]}
         #print(payload)
         response = requests.post(self.ps_url, json=json.dumps(payload))
@@ -226,9 +231,8 @@ def run(ps_url):
     print(f"Processed {c} minibatches in total. Elapsed time (s) {end-start}")
 
 if __name__ == "__main__":
-    # Initialize any frameworks
     # We should replace with real URL if not localhost.
     # If running on localhost, you might need to change ports 
     # TODO - grab this value from args or config file.
-    ps_url = "http://localhost:8080/" 
+    ps_url = "http://127.0.0.1:5000/" 
     run(ps_url)
