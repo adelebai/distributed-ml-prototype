@@ -18,6 +18,8 @@ pip install google-cloud-pubsub
 pip install google-cloud-storage
 ```
 
+There are hardcoded instances of the pubsub, storage account and http server 
+
 Data is written to [google pub/sub](https://cloud.google.com/pubsub/lite/docs/quickstart#pubsublite-quickstart-publisher-python).
 
 You will need your own instance of pub/sub if trying to run this. 
@@ -33,6 +35,11 @@ python data_feed.py ../data/hmnist_28_28_RGB.csv <specify epochs>
 Example usage
 ```
 python parameter_server.py
+```
+
+If running from a GCP VM, this is the command:
+```
+~/.local/bin/gunicorn -b :8080 parameter_server:app
 ```
 
 This will set up a server on localhost if running locally. 

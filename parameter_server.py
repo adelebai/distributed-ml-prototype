@@ -47,7 +47,7 @@ def aggregate_updates(model, updates):
             i += 1
 
 def get_model_folder_name(instanceid):
-    return f'tmp/model_{instanceid}'
+    return f'model_{instanceid}'
 
 def get_model_file_name(instanceid, iteration):
     return f'{get_model_folder_name(instanceid)}/model{iteration}.pth' #TODO update this to storage url
@@ -76,13 +76,14 @@ class ParameterServer():
         self.instance = str(datetime.datetime.now()).replace(":", "").replace(" ","")
         print(f"Creating Parameter Server instance {self.instance}")
 
-        try:
-            os.mkdir('tmp')
-        except FileExistsError:
-            print(f"Folder tmp already exists.")
+        # try:
+        #     os.mkdir('tmp')
+        # except Exception:
+        #     print(f"Folder tmp already exists.")
 
         try:
             os.mkdir(get_model_folder_name(self.instance))
+            print(f"created folder {get_model_folder_name(self.instance)}")
         except FileExistsError:
             print(f"Folder {get_model_folder_name(self.instance)} already exists.")
         
@@ -146,6 +147,8 @@ class ParameterServer():
         self.update += 1
         model_name = get_model_file_name(self.instance, self.update)
         torch.save(self.model.state_dict(), model_name)
+
+        print(f"{model_name},{str(datetime.datetime.now())}")
 
         # Now that we've saved this, upload to storage.
         new_blob = self.bucket.blob(model_name)

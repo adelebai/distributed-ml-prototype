@@ -1,5 +1,0 @@
-runtime: python38
-entrypoint: gunicorn -b :$PORT -w 1 parameter_server:app
-
-manual_scaling:
-  instances: 1 # we only want 1 instance of the p.s
