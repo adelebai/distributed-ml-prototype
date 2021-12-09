@@ -9,3 +9,7 @@ pandas
 torch==1.4.0
 torchvision==0.5.0
 urllib3==1.26.7
+psutil-5.8.0
+imblearn
+torchsummary-1.5.1
+tqdm-4.62.3
