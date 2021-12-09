@@ -154,7 +154,7 @@ class Learner():
 
     def post_parameters(self, parameters):
         # convert payload to 
-        print(f"payload index1: {parameters[1]}")
+        #print(f"payload index1: {parameters[1]}")
         payload = {"parameters": [p.tolist() for p in parameters]}
         #print(payload)
         response = requests.post(self.ps_url, json=json.dumps(payload))
