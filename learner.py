@@ -234,5 +234,5 @@ if __name__ == "__main__":
     # We should replace with real URL if not localhost.
     # If running on localhost, you might need to change ports 
     # TODO - grab this value from args or config file.
-    ps_url = "http://127.0.0.1:5000/" 
+    ps_url = "http://35.236.39.83:8080/" 
     run(ps_url)
