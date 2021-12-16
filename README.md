@@ -61,8 +61,17 @@ python learner.py
 There is also a temporary instance of this deployed to kubernetes. In order to give it tasks, run the distributed/data_feed.py script and wait a few minutes. Then ping the [public parameter server url](http://35.236.39.83:8080/) to see the version increase. 
 
 # Results (Accuracy)
+The plots for all models evaluation are saved in folder'images'. 
 
-TODO
+![Distributed accuracy results](images/acc.png)
+## Obervations
+- The distributed training takes more time and results in a much lower accuracy compared the baseline serial model, the model convergence is slower with more compute nodes. 
+- The model accuracy goes up to above ~0.6 to 0.7 then stagnate or the improvement is too small to be observed.
+- Overfitting exists. For the distributed training, the loss goes down for a little bit and then gets explode. In general, loss gets bigger when the k number is bigger. 
+## Possible solution to improve the performance of the system
+- Use more sophisticated network architecture, use GPU and do the distributed training for more epochs. 
+- Use pytorch instead of tensorflow, tensorflow might have a better performance when using CPU.
+
 
 # Results (Scalability)
 The timestamps.xlsx contains the compiled results from the distributed runs. The table below was generated using the data in this spreadsheet. 
