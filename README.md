@@ -1,5 +1,7 @@
 # distributed-ml-prototype
-Distributed ML prototype architecture for COMES6998 project
+Distributed ML prototype architecture for COMES6998 project. We use CPU training for all the VMs. 
+
+![Architecture diagram](images/arch.JPG)
 
 # How to run local (non-distributed) version
 ```
