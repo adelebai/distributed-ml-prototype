@@ -67,4 +67,4 @@ The timestamps.xlsx contains the compiled results from the distributed runs. The
 
 The consensus is that this implmentation of the learner-ps interaction is too network and I/O intensive. The non-distributed version trains faster and converges faster. However the distributed version is somewhat scalable amongst itself (within 1-5 workers). 
 
-![Distributed scalability results](images/disttable.jpg)
+![Distributed scalability results](images/disttable.JPG)
