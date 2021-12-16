@@ -39,12 +39,15 @@ def aggregate_updates(model, updates):
     """
     with torch.no_grad():
         i = 0
+        #current_p = [p for p in model.parameters()]
+        #print(f"current: {current_p[1]}")
+        #print(f"update: {updates[1]}")
         for p in model.parameters():
-            #print(f"p {p}")
-            #print(f"updates[i]: {updates[i]}")
             new_v = np.array(p.tolist()) + np.array(updates[i])
             p.copy_(torch.from_numpy(new_v))
             i += 1
+        #new_p = [p for p in model.parameters()]
+        #print(f"new: {new_p[1]}")
 
 def get_model_folder_name(instanceid):
     return f'model_{instanceid}'
@@ -70,7 +73,7 @@ TODO: print a validation accuracy somewhere after x updates.
 """
 class ParameterServer():
     def __init__(self):
-        self.k = 20 #update every 20 minibatches.
+        self.k = 10 #update every k minibatches.
 
         # give any instance a datetime based id
         self.instance = str(datetime.datetime.now()).replace(":", "").replace(" ","")
@@ -142,8 +145,7 @@ class ParameterServer():
         return json.dumps(payload)
 
     def write_model(self):
-        # currently, temporarily a local save:
-        # IF deploying with app engine, this should technically be mounted.
+        # local save and also upload to cloud storage.
         self.update += 1
         model_name = get_model_file_name(self.instance, self.update)
         torch.save(self.model.state_dict(), model_name)
